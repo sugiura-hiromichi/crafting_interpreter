@@ -1,4 +1,5 @@
 # branches
 
-this(main) branch is implementation of [crafting_interpreter](https://craftinginterpreters.com/).
-Without any challenges.
+this is implementation of
+[crafting interpreter](https://craftinginterpreters.com/scanning.html#the-interpreter-framework) in
+Rust.

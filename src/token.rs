@@ -15,6 +15,7 @@ pub enum TokenType {
 	Semicolon,
 	Slash,
 	Star,
+	Mod,
 
 	// one or two character tokens
 	Bang,
@@ -33,6 +34,7 @@ pub enum TokenType {
 
 	// keywords
 	And,
+	Assert,
 	Class,
 	Else,
 	False,
@@ -67,6 +69,7 @@ impl Display for TokenType {
 			Semicolon => ";",
 			Slash => "/",
 			Star => "*",
+			Mod => "%",
 			Bang => "!",
 			BangEqual => "!=",
 			Equal => "=",
@@ -79,6 +82,7 @@ impl Display for TokenType {
 			Str => "token_string",
 			Number => "token_number",
 			And => "and",
+			Assert => "assert",
 			Class => "class",
 			Else => "else",
 			False => "false",
@@ -129,8 +133,8 @@ impl TokenType {
 	pub fn keywords(&self,) -> Option<String,> {
 		use self::TokenType::*;
 		match self {
-			And | Class | Else | False | For | Fun | If | Nil | Or | Print | Return | Super
-			| This | True | Var | While => Some(format!("{self}"),),
+			And | Assert | Class | Else | False | For | Fun | If | Nil | Or | Print | Return
+			| Super | This | True | Var | While => Some(format!("{self}"),),
 			_ => None,
 		}
 	}
@@ -149,34 +153,36 @@ impl TokenType {
 			Semicolon => 8,
 			Slash => 9,
 			Star => 10,
-			Bang => 11,
-			BangEqual => 12,
-			Equal => 13,
-			EqualEqual => 14,
-			Greater => 15,
-			GreaterEqual => 16,
-			Less => 17,
-			LessEqual => 18,
-			Identifier => 19,
-			Str => 20,
-			Number => 21,
-			And => 22,
-			Class => 23,
-			Else => 24,
-			False => 25,
-			Fun => 26,
-			For => 27,
-			If => 28,
-			Nil => 29,
-			Or => 30,
-			Print => 31,
-			Return => 32,
-			Super => 33,
-			This => 34,
-			True => 35,
-			Var => 36,
-			While => 37,
-			EOF => 38,
+			Mod => 11,
+			Bang => 12,
+			BangEqual => 13,
+			Equal => 14,
+			EqualEqual => 15,
+			Greater => 16,
+			GreaterEqual => 17,
+			Less => 18,
+			LessEqual => 19,
+			Identifier => 20,
+			Str => 21,
+			Number => 22,
+			And => 23,
+			Assert => 24,
+			Class => 25,
+			Else => 26,
+			False => 27,
+			Fun => 28,
+			For => 29,
+			If => 30,
+			Nil => 31,
+			Or => 32,
+			Print => 33,
+			Return => 34,
+			Super => 35,
+			This => 36,
+			True => 37,
+			Var => 38,
+			While => 39,
+			EOF => 40,
 		}
 	}
 
@@ -194,50 +200,50 @@ impl TokenType {
 			8 => Some(Semicolon,),
 			9 => Some(Slash,),
 			10 => Some(Star,),
-			11 => Some(Bang,),
-			12 => Some(BangEqual,),
-			13 => Some(Equal,),
-			14 => Some(EqualEqual,),
-			15 => Some(Greater,),
-			16 => Some(GreaterEqual,),
-			17 => Some(Less,),
-			18 => Some(LessEqual,),
-			19 => Some(Identifier,),
-			20 => Some(Str,),
-			21 => Some(Number,),
-			22 => Some(And,),
-			23 => Some(Class,),
-			24 => Some(Else,),
-			25 => Some(False,),
-			26 => Some(Fun,),
-			27 => Some(For,),
-			28 => Some(If,),
-			29 => Some(Nil,),
-			30 => Some(Or,),
-			31 => Some(Print,),
-			32 => Some(Return,),
-			33 => Some(Super,),
-			34 => Some(This,),
-			35 => Some(True,),
-			36 => Some(Var,),
-			37 => Some(While,),
-			38 => Some(EOF,),
+			11 => Some(Mod,),
+			12 => Some(Bang,),
+			13 => Some(BangEqual,),
+			14 => Some(Equal,),
+			15 => Some(EqualEqual,),
+			16 => Some(Greater,),
+			17 => Some(GreaterEqual,),
+			18 => Some(Less,),
+			19 => Some(LessEqual,),
+			20 => Some(Identifier,),
+			21 => Some(Str,),
+			22 => Some(Number,),
+			23 => Some(And,),
+			24 => Some(Assert,),
+			25 => Some(Class,),
+			26 => Some(Else,),
+			27 => Some(False,),
+			28 => Some(Fun,),
+			29 => Some(For,),
+			30 => Some(If,),
+			31 => Some(Nil,),
+			32 => Some(Or,),
+			33 => Some(Print,),
+			34 => Some(Return,),
+			35 => Some(Super,),
+			36 => Some(This,),
+			37 => Some(True,),
+			38 => Some(Var,),
+			39 => Some(While,),
+			40 => Some(EOF,),
 			_ => None,
 		}
 	}
 }
 
-#[derive(Debug, Clone,)]
+#[derive(Debug, Clone, PartialEq,)]
 pub struct Token {
 	token_type: TokenType,
 	lexeme:     String,
-	line:       usize,
+	//line:       usize,
 }
 
 impl Token {
-	pub fn new(token_type: TokenType, lexeme: String, line: usize,) -> Self {
-		Self { token_type, lexeme, line, }
-	}
+	pub fn new(token_type: TokenType, lexeme: String,) -> Self { Self { token_type, lexeme, } }
 }
 
 impl Display for Token {
@@ -246,9 +252,4 @@ impl Display for Token {
 
 		write!(f, "{tt} {}", self.lexeme)
 	}
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
 }

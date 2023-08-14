@@ -31,11 +31,13 @@ fn run(src: String,) -> io::Result<(),> {
 	for token in tokens {
 		println!("{token:?}",);
 	}
+
 	Ok((),)
 }
 
 fn main() -> io::Result<(),> {
 	let mut args = std::env::args();
+	args.next();
 	if args.len() > 1 {
 		println!("Usage: lox [script]");
 		Ok((),)
@@ -44,9 +46,4 @@ fn main() -> io::Result<(),> {
 	} else {
 		run_prompt()
 	}
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
 }

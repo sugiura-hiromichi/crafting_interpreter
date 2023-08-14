@@ -7,7 +7,7 @@ use crate::token::TokenType;
 use crate::token::TokenType::*;
 
 /// Scanner for the lox language.
-#[derive(Clone,)]
+#[derive(Clone, Debug,)]
 pub struct Scanner {
 	had_err:  InterpreterError,
 	src:      String,
@@ -38,12 +38,13 @@ impl Scanner {
 
 	pub fn scan_tokens(mut self,) -> Vec<Token,> {
 		let this = &mut self;
-		while this.at_end() {
-			this.start = this.current;
+		while !this.at_end() {
 			this.scan_token();
+			this.start = this.current;
 		}
 
-		this.tokens.push(Token::new(EOF, "".to_string(), this.line,),);
+		//pushing the EOF token cannot be done by scan_token()
+		self.tokens.push(Token::new(EOF, "".to_string(),),);
 		self.tokens
 	}
 
@@ -59,6 +60,7 @@ impl Scanner {
 			'+' => self.add_token(Plus,),
 			';' => self.add_token(Semicolon,),
 			'*' => self.add_token(Star,),
+			'%' => self.add_token(Mod,),
 			'!' => {
 				let tk = if self.next_is('=',) { BangEqual } else { Bang };
 				self.add_token(tk,)
@@ -77,21 +79,18 @@ impl Scanner {
 			},
 			'/' => {
 				if self.next_is('/',) {
-					while !(self.peek() != '\n' || self.at_end()) {
+					while self.peek() != '\n' && !self.at_end() {
 						self.eat();
 					}
+				} else if self.next_is('*',) {
+					self.block_comment();
 				} else {
 					self.add_token(Slash,)
 				}
 			},
-			' ' | '\r' | '\t' => (), // ignore whitespace
+			' ' | '\r' | '\t' => (), // ignore whitespace, tab(indent)
 			'\n' => self.line += 1,
 			'"' => self.string(),
-			'o' => {
-				if self.next_is('r',) {
-					self.add_token(Or,)
-				}
-			},
 			c => {
 				if self.is_digit(c,) {
 					self.number();
@@ -107,9 +106,22 @@ impl Scanner {
 		}
 	}
 
+	/// in the book, this `fn` is originally implemented that
+	/// ```rust
+	/// fn eat(&mut self,) -> char {
+	/// 	self.current += 1;`
+	/// 	self.peek()
+	/// }
+	/// ```
+	/// but this implementation will not scan some edge case correctly. Like:
+	/// ```
+	/// //files which starts with a comment
+	/// var a = 1;
+	/// ```
 	fn eat(&mut self,) -> char {
+		let c = self.peek();
 		self.current += 1;
-		self.peek()
+		c
 	}
 
 	// p:
@@ -138,7 +150,8 @@ impl Scanner {
 	}
 
 	fn string(&mut self,) {
-		while !(self.peek() != '"' || self.at_end()) {
+		self.current += 1;
+		while !(self.peek() == '"' || self.at_end()) {
 			if self.peek() == '\n' {
 				self.line += 1;
 			}
@@ -147,14 +160,13 @@ impl Scanner {
 
 		if self.at_end() {
 			self.error(InterpreterError::new().occur(err_report::ErrorKind::UnterminatedString(
-				// d: `self.start+1` trims the leading `"`
-				self.src[self.start + 1..=self.current].to_string(),
+				self.src[self.start..].to_string(),
 			),),);
 			return;
 		}
 
-		self.eat(); // eat the closing `"`
-		self.add_token(Str,)
+		self.current += 1;
+		self.add_token(Str,);
 	}
 
 	fn number(&mut self,) {
@@ -183,10 +195,25 @@ impl Scanner {
 		self.add_token(tt.clone(),);
 	}
 
+	fn block_comment(&mut self,) {
+		while !(self.next_is('*',) && self.next_is('/',)) {
+			if self.next_is('\n',) {
+				self.line += 1;
+			} else if self.next_is('/',) && self.next_is('*',) {
+				self.block_comment();
+			} else if self.current >= self.src.len() {
+				self.error(
+					InterpreterError::new().occur(err_report::ErrorKind::UnterminatedComment,),
+				);
+			} else {
+				self.eat();
+			}
+		}
+	}
+
 	fn add_token(&mut self, tt: TokenType,) {
-		let is_str = if let Str = tt { 1 } else { 0 };
-		let lexeme = self.src[self.start + is_str..self.current - is_str].to_string();
-		self.tokens.push(Token::new(tt, lexeme, self.line,),);
+		let lexeme = self.src[self.start..self.current].to_string();
+		self.tokens.push(Token::new(tt, lexeme,),);
 	}
 
 	fn error(&mut self, e: InterpreterError,) {
@@ -203,6 +230,68 @@ mod tests {
 	fn esc_code() {
 		let mut scanner = Scanner::new("".to_string(),);
 		assert_eq!(scanner.eat(), '\0',);
-		println!("this is \\0 [\0]")
+		assert_eq!(scanner.scan_tokens().len(), 1);
+	}
+
+	#[test]
+	fn treat_whitespace() {
+		let scanner = Scanner::new("\r\t ".to_string(),);
+		assert_eq!(scanner.scan_tokens().len(), 1);
+	}
+
+	#[test]
+	fn treat_newline() {
+		let scanner = Scanner::new("\n\n".to_string(),);
+		assert_eq!(scanner.scan_tokens().len(), 1,);
+	}
+
+	#[test]
+	fn statements_test() {
+		let scanner = Scanner::new("var a = 1;".to_string(),);
+		let expect = vec![
+			Token::new(Var, "var".to_string(),),
+			Token::new(Identifier, "a".to_string(),),
+			Token::new(Equal, "=".to_string(),),
+			Token::new(Number, "1".to_string(),),
+			Token::new(Semicolon, ";".to_string(),),
+			Token::new(EOF, "".to_string(),),
+		];
+		assert_eq!(expect, scanner.scan_tokens(),);
+	}
+
+	#[test]
+	fn multiline_test() {
+		let scanner = Scanner::new("var a = 1;\nvar b = 2;\nprint \"hello world\";".to_string(),);
+		let expect = vec![
+			Token::new(Var, "var".to_string(),),
+			Token::new(Identifier, "a".to_string(),),
+			Token::new(Equal, "=".to_string(),),
+			Token::new(Number, "1".to_string(),),
+			Token::new(Semicolon, ";".to_string(),),
+			Token::new(Var, "var".to_string(),),
+			Token::new(Identifier, "b".to_string(),),
+			Token::new(Equal, "=".to_string(),),
+			Token::new(Number, "2".to_string(),),
+			Token::new(Semicolon, ";".to_string(),),
+			Token::new(Print, "print".to_string(),),
+			Token::new(Str, "\"hello world\"".to_string(),),
+			Token::new(Semicolon, ";".to_string(),),
+			Token::new(EOF, "".to_string(),),
+		];
+		assert_eq!(expect, scanner.scan_tokens(),);
+	}
+
+	#[test]
+	fn comment_test() {
+		let scanner = Scanner::new("var a = 1; // this is a comment".to_string(),);
+		let expect = vec![
+			Token::new(Var, "var".to_string(),),
+			Token::new(Identifier, "a".to_string(),),
+			Token::new(Equal, "=".to_string(),),
+			Token::new(Number, "1".to_string(),),
+			Token::new(Semicolon, ";".to_string(),),
+			Token::new(EOF, "".to_string(),),
+		];
+		assert_eq!(expect, scanner.scan_tokens(),);
 	}
 }
