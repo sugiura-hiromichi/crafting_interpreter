@@ -3,6 +3,7 @@
 mod err_report;
 mod scanner;
 mod token;
+mod tool;
 
 use scanner::Scanner;
 use std::io;
